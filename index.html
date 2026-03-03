@@ -2665,16 +2665,16 @@ function wzHTML(s){
       </div>
       <div class="fg"><label>Nível Técnico</label><select id="wz-tl"><option value="">—</option><option>Não técnico</option><option>Semi-técnico</option><option>Técnico</option></select></div>
       <div class="fg"><label>Como Consome o Relatório</label>
-        <div class="tags" id="wz-con">${getItems('consumption').map(t=>'<div class="tag'+((wz.consumption||[]).includes(t)?' on':'')+' onclick="wzTag(this,\'consumption\')">'+esc(t)+'</div>').join('')}</div>
+        <div class="tags" id="wz-con">${getItems('consumption').map(t=>'<div class="tag'+((wz.consumption||[]).includes(t)?' on':'')+'" onclick="wzTag(this,\'consumption\')">'+esc(t)+'</div>').join('')}</div>
       </div>`;
     case 3:return`
-      <div class="mb2"><label style="margin-bottom:6px">Backend</label><div class="tgrid">${getItems('backend').map(t=>'<div class="tc'+((wz.stack?.backend||[]).includes(t)?' on':'')+' onclick="wzTech(this,\'backend\',\''+esc(t)+'\')">'+ esc(t)+'</div>').join('')}</div></div>
-      <div class="mb2"><label style="margin-bottom:6px">Banco de Dados</label><div class="tgrid">${getItems('db').map(t=>'<div class="tc'+((wz.stack?.db||[]).includes(t)?' on':'')+' onclick="wzTech(this,\'db\',\''+esc(t)+'\')">'+ esc(t)+'</div>').join('')}</div></div>
-      <div class="mb2"><label style="margin-bottom:6px">Scheduler</label><div class="tgrid">${getItems('scheduler').map(t=>'<div class="tc'+((wz.stack?.scheduler||[]).includes(t)?' on':'')+' onclick="wzTech(this,\'scheduler\',\''+esc(t)+'\')">'+ esc(t)+'</div>').join('')}</div></div>
-      <div><label style="margin-bottom:6px">BI / Visualização</label><div class="tgrid">${getItems('report').map(t=>'<div class="tc'+((wz.stack?.report||[]).includes(t)?' on':'')+' onclick="wzTech(this,\'report\',\''+esc(t)+'\')">'+ esc(t)+'</div>').join('')}</div></div>`;
+      <div class="mb2"><label style="margin-bottom:6px">Backend</label><div class="tgrid">${getItems('backend').map(t=>'<div class="tc'+((wz.stack?.backend||[]).includes(t)?' on':'')+'" onclick="wzTech(this,\'backend\',\''+esc(t)+'\')">'+esc(t)+'</div>').join('')}</div></div>
+      <div class="mb2"><label style="margin-bottom:6px">Banco de Dados</label><div class="tgrid">${getItems('db').map(t=>'<div class="tc'+((wz.stack?.db||[]).includes(t)?' on':'')+'" onclick="wzTech(this,\'db\',\''+esc(t)+'\')">'+esc(t)+'</div>').join('')}</div></div>
+      <div class="mb2"><label style="margin-bottom:6px">Scheduler</label><div class="tgrid">${getItems('scheduler').map(t=>'<div class="tc'+((wz.stack?.scheduler||[]).includes(t)?' on':'')+'" onclick="wzTech(this,\'scheduler\',\''+esc(t)+'\')">'+esc(t)+'</div>').join('')}</div></div>
+      <div><label style="margin-bottom:6px">BI / Visualização</label><div class="tgrid">${getItems('report').map(t=>'<div class="tc'+((wz.stack?.report||[]).includes(t)?' on':'')+'" onclick="wzTech(this,\'report\',\''+esc(t)+'\')">'+esc(t)+'</div>').join('')}</div></div>`;
     case 4:return`
       <div class="fg"><label>Tipos de Fonte</label>
-        <div class="tags" id="wz-src">${getItems('sourceTypes').map(t=>'<div class="tag'+((wz.sourceTypes||[]).includes(t)?' on':'')+' onclick="wzTag(this,\'sourceTypes\')">'+esc(t)+'</div>').join('')}</div>
+        <div class="tags" id="wz-src">${getItems('sourceTypes').map(t=>'<div class="tag'+((wz.sourceTypes||[]).includes(t)?' on':'')+'" onclick="wzTag(this,\'sourceTypes\')">'+esc(t)+'</div>').join('')}</div>
       </div>
       <div class="fg"><label>Descreva as Fontes</label><textarea id="wz-srcd" rows="4" placeholder="1. Banco PostgreSQL — tabelas: viagens, veiculos&#10;2. API TMS externo — OAuth2&#10;3. Planilha Google Sheets"></textarea></div>
       <div class="fgrid">
@@ -2695,7 +2695,7 @@ function wzHTML(s){
       </div>`;
     case 7:return`
       <div class="fg"><label>Funcionalidades MVP</label>
-        <div class="tags" id="wz-feat">${getItems('features').map(t=>'<div class="tag'+((wz.features||[]).includes(t)?' on':'')+' onclick="wzTag(this,\'features\')">'+esc(t)+'</div>').join('')}</div>
+        <div class="tags" id="wz-feat">${getItems('features').map(t=>'<div class="tag'+((wz.features||[]).includes(t)?' on':'')+'" onclick="wzTag(this,\'features\')">'+esc(t)+'</div>').join('')}</div>
       </div>
       <div class="fg"><label>KPIs do Relatório</label>
         <div class="tags" id="wz-kpis">${['Total viagens','On-time %','Custo médio','Custo/KM','KM total','Utilização frota','Taxa ocorrências','SLA entrega','Combustível','NPS','Ranking motoristas','Top rotas'].map(t=>`<div class="tag${(wz.kpis||[]).includes(t)?' on':''}" onclick="wzTag(this,'kpis')">${t}</div>`).join('')}</div>
