@@ -2132,7 +2132,9 @@ function dTab(el,id){
   document.querySelectorAll('.dtab').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.dtab-panel').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');
-  document.getElementById(id).classList.add('on');
+  document.getElementById(id)?.classList.add('on');
+  if(id==='d-canvas') renderCanvasTab();
+  if(id==='d-perms'){ loadWhitelistUsers().then(()=>{ const p=S.projects.find(x=>x.id===S._curProj); if(p) renderPerms(p); }); }
 }
 
 function switchLayer(el,id){
@@ -2697,12 +2699,27 @@ function renderPerms(p){
 function canManageProject(p){ const r=curRole(); if(['zeus','admin'].includes(r)) return true; return p.owner===window._curUser?.email; }
 function toggleMemberPerm(mi,key){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; if(!p.members[mi].perms)p.members[mi].perms=[]; const idx=p.members[mi].perms.indexOf(key); if(idx>=0)p.members[mi].perms.splice(idx,1); else p.members[mi].perms.push(key); renderPerms(p); }
 function removeMember(mi){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; if(!confirm('Remover usuário?')) return; p.members.splice(mi,1); renderPerms(p); toast('Usuário removido!'); }
-function openAddMember(){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const ex=(p.members||[]).map(m=>m.email); const av=(S.whitelistUsers||[]).filter(u=>!ex.includes(u.email)&&u.email!==p.owner); const sel=document.getElementById('member-sel'); if(sel) sel.innerHTML=av.length?'<option value="">Selecionar...</option>'+av.map(u=>'<option value="'+esc(u.email)+'">'+esc(u.name||u.email)+' ('+esc(u.role)+')</option>').join(''):'<option value="">Nenhum usuário disponível</option>'; ['view','edit','meeting','export'].forEach(k=>{const el=document.getElementById('mp-'+k);if(el)el.checked=k==='view';}); openOv('ov-member'); }
+async function openAddMember(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const ex=(p.members||[]).map(m=>m.email); const av=(S.whitelistUsers||[]).filter(u=>!ex.includes(u.email)&&u.email!==p.owner); const sel=document.getElementById('member-sel'); if(sel) sel.innerHTML=av.length?'<option value="">Selecionar...</option>'+av.map(u=>'<option value="'+esc(u.email)+'">'+esc(u.name||u.email)+' ('+esc(u.role)+')</option>').join(''):'<option value="">Nenhum usuário disponível</option>'; ['view','edit','meeting','export'].forEach(k=>{const el=document.getElementById('mp-'+k);if(el)el.checked=k==='view';}); openOv('ov-member'); }
 function saveMember(){ const email=document.getElementById('member-sel')?.value; if(!email){alert('Selecione um usuário');return;} const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; if(!p.members)p.members=[]; const perms=['view','edit','meeting','export'].filter(k=>document.getElementById('mp-'+k)?.checked); p.members.push({email,perms}); saveS('projetos',p.id,p); closeOv('ov-member'); renderPerms(p); toast('Usuário vinculado!'); }
-function openChangeOwner(){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const sel=document.getElementById('owner-sel'); if(sel) sel.innerHTML='<option value="">Selecionar...</option>'+(S.whitelistUsers||[]).map(u=>'<option value="'+esc(u.email)+'"'+(u.email===p.owner?' selected':'')+'>'+esc(u.name||u.email)+'</option>').join(''); openOv('ov-owner'); }
+async function openChangeOwner(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const sel=document.getElementById('owner-sel'); if(sel) sel.innerHTML='<option value="">Selecionar...</option>'+(S.whitelistUsers||[]).map(u=>'<option value="'+esc(u.email)+'"'+(u.email===p.owner?' selected':'')+'>'+esc(u.name||u.email)+'</option>').join(''); openOv('ov-owner'); }
 function saveOwner(){ const email=document.getElementById('owner-sel')?.value; if(!email){alert('Selecione o novo dono');return;} const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; p.owner=email; saveS('projetos',p.id,p); closeOv('ov-owner'); renderPerms(p); toast('Dono transferido!'); }
 function savePerms(){ const p=S.projects.find(x=>x.id===S._curProj); if(p) saveS('projetos',p.id,p); toast('Permissões salvas!'); }
-async function loadWhitelistUsers(){ try{ S.whitelistUsers=await window.fbGetAll('whitelist'); }catch(e){ S.whitelistUsers=[]; } }
+async function loadWhitelistUsers(){
+  try{
+    const docs = await window.fbGetAll('whitelist');
+    // each doc has id=email_with_underscore, but email field is the real email
+    S.whitelistUsers = docs.map(d=>({
+      id:   d.id,
+      name: d.name  || d.email || d.id,
+      email:d.email || d.id.replace(/_/g,'.').replace('@gmail.com','@gmail.com'), // fallback
+      role: d.role  || 'viewer'
+    }));
+    console.log('[Whitelist] loaded:', S.whitelistUsers.length, 'users', S.whitelistUsers);
+  }catch(e){ 
+    console.error('[Whitelist] error:', e);
+    S.whitelistUsers=[]; 
+  }
+}
 function getVisibleProjects(){ const r=curRole(); if(['zeus','admin'].includes(r)) return S.projects; const email=window._curUser?.email; return S.projects.filter(p=>{ if(p.owner===email) return true; return (p.members||[]).some(m=>m.email===email&&(m.perms||[]).includes('view')); }); }
 // ═══════════════════════════════════════════════════
 // WIZARD
