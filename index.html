@@ -1149,8 +1149,11 @@ select option{background:var(--s2)}
     <div class="ph-h">Matriz Valor × Complexidade</div>
     <div class="ph-sub">Priorize projetos e iniciativas pelo valor para o negócio vs complexidade técnica.</div>
     <div class="ph-row">
+      <select id="mx-week-sel" style="font-size:11px;padding:6px 10px;background:var(--s2);border:1px solid var(--b0);border-radius:6px;color:var(--t1)" onchange="loadMatrixWeek(this.value)">
+        <option value="">Semana atual</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="openNewMatrixWeek()">📅 Nova Semana</button>
       <button class="btn btn-gold btn-sm" onclick="openAddMatrixItem()">+ Adicionar Item</button>
-      <button class="btn btn-ghost btn-sm" onclick="clearManualItems()">🗑 Limpar Manuais</button>
     </div>
   </div>
   <div style="padding:24px 32px;flex:1;overflow-y:auto">
@@ -1886,7 +1889,7 @@ window.initApp = async function(){
   // real-time listeners
   window.fbWatch('projetos',  docs=>{ S.projects=docs;  renderProjects(); renderHome(); });
   window.fbWatch('empresas', docs=>{ S.companies=docs; renderCos(); });
-  window.fbWatch('reunioes',  docs=>{ S.meetings=docs;  renderMeetings(); renderHome(); document.getElementById('pill-meet').textContent=docs.length; });
+  window.fbWatch('reunioes',  docs=>{ S.meetings=docs;  renderMeetings(); renderHome(); });
   // update UI
   updateSbUser();
   applyAccessRestrictions();
@@ -1895,6 +1898,7 @@ window.initApp = async function(){
   loadGlossary();
   loadWhitelistUsers();
   loadCanvasQuestions();
+  loadMatrixWeeks();
   loadMatrixManual();
   // ensure home page is visible
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('on'));
@@ -2158,7 +2162,7 @@ function dTab(el,id){
   el.classList.add('on');
   document.getElementById(id)?.classList.add('on');
   if(id==='d-canvas') renderCanvasTab();
-  if(id==='d-perms'){ loadWhitelistUsers().then(()=>{ const p=S.projects.find(x=>x.id===S._curProj); if(p) renderPerms(p); }); }
+  if(id==='d-perms'){ loadWhitelistUsers().then(()=>{ const p=S.projects.find(x=>x.id===S.curId); if(p) renderPerms(p); }); }
 }
 
 function switchLayer(el,id){
@@ -2171,14 +2175,22 @@ function switchLayer(el,id){
 // ═══════════════════════════════════════════════════
 // HOME
 // ═══════════════════════════════════════════════════
+function getVisibleMeetings(){
+  const r=curRole();
+  if(['zeus','admin'].includes(r)) return S.meetings;
+  const email=window._curUser?.email;
+  const visibleProj=getVisibleProjects().map(p=>p.id);
+  return S.meetings.filter(m=>!m.projectId||visibleProj.includes(m.projectId));
+}
+
 function renderHome(){
-  if(!document.getElementById('page-home')) return; // not ready yet
-  const p=S.projects,m=S.meetings,c=S.companies;
+  if(!document.getElementById('page-home')) return;
+  const p=getVisibleProjects(), m=getVisibleMeetings(), co=S.companies;
   document.getElementById('st-proj').textContent=p.length;
   document.getElementById('st-wip').textContent=p.filter(x=>x.status==='wip').length;
   document.getElementById('st-done').textContent=p.filter(x=>x.status==='done').length;
   document.getElementById('st-meet').textContent=m.length;
-  document.getElementById('st-co').textContent=c.length;
+  document.getElementById('st-co').textContent=co.length;
   document.getElementById('pill-proj').textContent=p.length;
   document.getElementById('pill-meet').textContent=m.length;
 
@@ -2473,7 +2485,7 @@ function saveMeeting(){
   const date=document.getElementById('mt-date').value;
   const subj=document.getElementById('mt-subj').value.trim();
   const summ=document.getElementById('mt-summ').value.trim();
-  if(!date||!subj||!summ){alert('Data, assunto e resumo são obrigatórios.');return;}
+  if(!date||!subj){alert('Data e assunto são obrigatórios.');return;}
   const obj={
     date, time:document.getElementById('mt-time').value,
     subject:subj, summary:summ,
@@ -2496,7 +2508,7 @@ function saveMeeting(){
   closeOv('ov-meet');
   renderMeetings(); renderHome();
   if(S.curId) renderDetailMeetings(S.curId);
-  document.getElementById('pill-meet').textContent=S.meetings.length;
+  // pill updated by renderHome
   toast('Reunião salva!');
 }
 
@@ -2733,13 +2745,13 @@ function canAccessProject(p){
   return (p.members||[]).some(m=>m.email===email&&(m.perms||[]).includes('view'));
 }
 function canManageProject(p){ const r=curRole(); if(['zeus','admin'].includes(r)) return true; return p.owner===window._curUser?.email; }
-function toggleMemberPerm(mi,key){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; if(!p.members[mi].perms)p.members[mi].perms=[]; const idx=p.members[mi].perms.indexOf(key); if(idx>=0)p.members[mi].perms.splice(idx,1); else p.members[mi].perms.push(key); renderPerms(p); }
-function removeMember(mi){ const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; if(!confirm('Remover usuário?')) return; p.members.splice(mi,1); renderPerms(p); toast('Usuário removido!'); }
+function toggleMemberPerm(mi,key){ const p=S.projects.find(x=>x.id===S.curId); if(!p) return; if(!p.members[mi].perms)p.members[mi].perms=[]; const idx=p.members[mi].perms.indexOf(key); if(idx>=0)p.members[mi].perms.splice(idx,1); else p.members[mi].perms.push(key); renderPerms(p); }
+function removeMember(mi){ const p=S.projects.find(x=>x.id===S.curId); if(!p) return; if(!confirm('Remover usuário?')) return; p.members.splice(mi,1); renderPerms(p); toast('Usuário removido!'); }
 function mpStyle(key, checked){
   const lbl=document.getElementById('lbl-'+key);
   if(lbl) lbl.style.borderColor=checked?'var(--gold)':'var(--b0)';
 }
-async function openAddMember(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const ex=(p.members||[]).map(m=>m.email); const av=(S.whitelistUsers||[]).filter(u=>!ex.includes(u.email)&&u.email!==p.owner); const sel=document.getElementById('member-sel'); if(sel) sel.innerHTML=av.length?'<option value="">Selecionar...</option>'+av.map(u=>'<option value="'+esc(u.email)+'">'+esc(u.name||u.email)+' ('+esc(u.role)+')</option>').join(''):'<option value="">Nenhum usuário disponível</option>'; ['view','edit','meeting','export'].forEach(k=>{const el=document.getElementById('mp-'+k);if(el){el.checked=k==='view';mpStyle(k,k==='view');}}); openOv('ov-member'); }
+async function openAddMember(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S.curId); if(!p) return; const ex=(p.members||[]).map(m=>m.email); const av=(S.whitelistUsers||[]).filter(u=>!ex.includes(u.email)&&u.email!==p.owner); const sel=document.getElementById('member-sel'); if(sel) sel.innerHTML=av.length?'<option value="">Selecionar...</option>'+av.map(u=>'<option value="'+esc(u.email)+'">'+esc(u.name||u.email)+' ('+esc(u.role)+')</option>').join(''):'<option value="">Nenhum usuário disponível</option>'; ['view','edit','meeting','export'].forEach(k=>{const el=document.getElementById('mp-'+k);if(el){el.checked=k==='view';mpStyle(k,k==='view');}}); openOv('ov-member'); }
 function saveMember(){
   const email=document.getElementById('member-sel')?.value;
   if(!email){alert('Selecione um usuário');return;}
@@ -2755,14 +2767,14 @@ function saveMember(){
     toast('Usuário adicionado!');
     return;
   }
-  const p=S.projects.find(x=>x.id===S._curProj); if(!p) return;
+  const p=S.projects.find(x=>x.id===S.curId); if(!p) return;
   if(!p.members)p.members=[];
   p.members.push({email,perms});
   saveS('projetos',p.id,p); closeOv('ov-member'); renderPerms(p); toast('Usuário vinculado!');
 }
-async function openChangeOwner(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; const sel=document.getElementById('owner-sel'); if(sel) sel.innerHTML='<option value="">Selecionar...</option>'+(S.whitelistUsers||[]).map(u=>'<option value="'+esc(u.email)+'"'+(u.email===p.owner?' selected':'')+'>'+esc(u.name||u.email)+'</option>').join(''); openOv('ov-owner'); }
-function saveOwner(){ const email=document.getElementById('owner-sel')?.value; if(!email){alert('Selecione o novo dono');return;} const p=S.projects.find(x=>x.id===S._curProj); if(!p) return; p.owner=email; saveS('projetos',p.id,p); closeOv('ov-owner'); renderPerms(p); toast('Dono transferido!'); }
-function savePerms(){ const p=S.projects.find(x=>x.id===S._curProj); if(p) saveS('projetos',p.id,p); toast('Permissões salvas!'); }
+async function openChangeOwner(){ await loadWhitelistUsers(); const p=S.projects.find(x=>x.id===S.curId); if(!p) return; const sel=document.getElementById('owner-sel'); if(sel) sel.innerHTML='<option value="">Selecionar...</option>'+(S.whitelistUsers||[]).map(u=>'<option value="'+esc(u.email)+'"'+(u.email===p.owner?' selected':'')+'>'+esc(u.name||u.email)+'</option>').join(''); openOv('ov-owner'); }
+function saveOwner(){ const email=document.getElementById('owner-sel')?.value; if(!email){alert('Selecione o novo dono');return;} const p=S.projects.find(x=>x.id===S.curId); if(!p) return; p.owner=email; saveS('projetos',p.id,p); closeOv('ov-owner'); renderPerms(p); toast('Dono transferido!'); }
+function savePerms(){ const p=S.projects.find(x=>x.id===S.curId); if(p) saveS('projetos',p.id,p); toast('Permissões salvas!'); }
 async function loadWhitelistUsers(){
   try{
     const docs = await window.fbGetAll('whitelist');
@@ -3427,7 +3439,7 @@ let CANVAS_Q = [
 ];
 
 function renderCanvasTab(){
-  const p = S.projects.find(x=>x.id===S._curProj); if(!p) return;
+  const p = S.projects.find(x=>x.id===S.curId); if(!p) return;
   const cv = p.canvas || {};
   const r = curRole();
   const canEdit = canManageProject(p) || (p.members||[]).some(m=>m.email===window._curUser?.email&&(m.perms||[]).includes('edit'));
@@ -3456,7 +3468,7 @@ function renderCanvasTab(){
 }
 
 async function saveCanvas(){
-  const p = S.projects.find(x=>x.id===S._curProj); if(!p) return;
+  const p = S.projects.find(x=>x.id===S.curId); if(!p) return;
   const cv = p.canvas || {};
   CANVAS_Q.forEach(({id})=>{ const el=document.getElementById('cv-'+id); if(el) cv[id]=el.value; });
   p.canvas = cv;
@@ -3465,7 +3477,7 @@ async function saveCanvas(){
 }
 
 function viewCanvasDoc(){
-  const p = S.projects.find(x=>x.id===S._curProj); if(!p) return;
+  const p = S.projects.find(x=>x.id===S.curId); if(!p) return;
   const cv = p.canvas || {};
   let txt = '📋 CANVAS — ' + (p.name||'Projeto') + '\n';
   txt += '═'.repeat(50) + '\n\n';
@@ -3603,21 +3615,27 @@ function renderMatrix(){
 
 function renderMatrixList(items){
   const cont = document.getElementById('matrix-items-list'); if(!cont) return;
-  if(!items.length){ cont.innerHTML='<div style="color:var(--t3);font-size:11px">Nenhum item. Adicione manualmente ou defina Valor/Complexidade nos projetos.</div>'; return; }
+  if(!items.length){ cont.innerHTML='<div style="color:var(--t3);font-size:11px;padding:10px 0">Nenhum item. Adicione manualmente ou defina Valor/Complexidade nos projetos.</div>'; return; }
   const isQW = i => i.val >= i.cmp+1;
   const isAv = i => i.cmp >= i.val+2;
   cont.innerHTML = items.map(item=>{
     const badge = isQW(item) ? ['Quick Win','#4ade80'] : isAv(item) ? ['Evitar','#f87171'] : ['Estratégico','#facc15'];
-    return `<div class="mx-item">
-      <div>
-        <div class="mx-item-name">${esc(item.name)}</div>
-        <div class="mx-item-scores">V:${item.val} C:${item.cmp}${item.auto?' · projeto':''}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <span class="mx-badge" style="background:${badge[1]}22;color:${badge[1]};border:1px solid ${badge[1]}44">${badge[0]}</span>
-        ${!item.auto?`<button class="btn btn-red btn-xs btn-ic" onclick="removeManualItem('${item.id}')">✕</button>`:''}
-      </div>
-    </div>`;
+    return '<div class="mx-item">'
+      +'<div style="flex:1">'
+        +'<div class="mx-item-name">'+esc(item.name)+'</div>'
+        +'<div style="font-size:9px;color:var(--t3);font-family:monospace;margin-top:3px">'
+          +'⚡ Valor: '+item.val+'/5 &nbsp; 🔧 Complexidade: '+item.cmp+'/5'
+          +(item.auto?' &nbsp; <span style="color:var(--blue)">· projeto</span>':'')
+        +'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:5px">'
+        +'<span class="mx-badge" style="background:'+badge[1]+'22;color:'+badge[1]+';border:1px solid '+badge[1]+'44">'+badge[0]+'</span>'
+        +(!item.auto
+          ? '<button class="btn btn-sec btn-xs btn-ic" data-id="'+item.id+'" onclick="editManualItem(this.dataset.id)" title="Editar">✏️</button>'
+            +'<button class="btn btn-red btn-xs btn-ic" data-id="'+item.id+'" onclick="removeManualItem(this.dataset.id)" title="Remover">✕</button>'
+          : '')
+      +'</div>'
+    +'</div>';
   }).join('');
 }
 
@@ -3632,18 +3650,21 @@ function openAddMatrixItem(){
 async function saveMatrixItem(){
   const name = document.getElementById('mx-name')?.value.trim();
   if(!name){alert('Nome obrigatório');return;}
-  const item = {
-    id: uid(), name,
-    val: +document.getElementById('mx-val').value,
-    cmp: +document.getElementById('mx-cmp').value,
-    note: document.getElementById('mx-note')?.value||'',
-    auto: false
-  };
-  MX_MANUAL.push(item);
+  const val = +document.getElementById('mx-val').value;
+  const cmp = +document.getElementById('mx-cmp').value;
+  const note = document.getElementById('mx-note')?.value||'';
+  if(window._mxEditId){
+    const idx=MX_MANUAL.findIndex(x=>x.id===window._mxEditId);
+    if(idx>=0) MX_MANUAL[idx]={...MX_MANUAL[idx],name,val,cmp,note};
+    window._mxEditId=null;
+    document.getElementById('matrix-modal-title').textContent='Adicionar Item';
+  } else {
+    MX_MANUAL.push({id:uid(),name,val,cmp,note,auto:false});
+  }
   await window.fbSave('settings','matrixManual',{items:MX_MANUAL});
   closeOv('ov-matrix');
   renderMatrix();
-  toast('Item adicionado!');
+  toast('Item salvo!');
 }
 
 function removeManualItem(id){
@@ -3658,6 +3679,49 @@ async function clearManualItems(){
   await window.fbSave('settings','matrixManual',{items:[]});
   renderMatrix();
   toast('Itens manuais removidos!');
+}
+
+function editManualItem(id){
+  const item=MX_MANUAL.find(x=>x.id===id); if(!item) return;
+  document.getElementById('mx-name').value=item.name;
+  document.getElementById('mx-val').value=item.val;
+  document.getElementById('mx-cmp').value=item.cmp;
+  document.getElementById('mx-note').value=item.note||'';
+  document.getElementById('matrix-modal-title').textContent='Editar Item';
+  window._mxEditId=id;
+  openOv('ov-matrix');
+}
+
+let MX_WEEKS=[], MX_CUR_WEEK='';
+async function loadMatrixWeeks(){
+  try{
+    const snap=await window.fbGetAll('settings');
+    const mw=snap.find(d=>d.id==='matrixWeeks');
+    if(mw?.weeks) MX_WEEKS=mw.weeks;
+    const sel=document.getElementById('mx-week-sel');
+    if(sel){
+      sel.innerHTML='<option value="">Semana atual</option>'
+        +MX_WEEKS.map(w=>'<option value="'+w.id+'">'+(w.label||w.id)+'</option>').join('');
+    }
+  }catch(e){}
+}
+async function openNewMatrixWeek(){
+  const label=prompt('Nome da semana (ex: Semana 01/2025):');
+  if(!label) return;
+  const id='week_'+Date.now();
+  // save current items to current week first
+  MX_WEEKS.push({id,label,items:[...MX_MANUAL]});
+  MX_MANUAL=[];
+  await window.fbSave('settings','matrixWeeks',{weeks:MX_WEEKS});
+  await window.fbSave('settings','matrixManual',{items:[]});
+  await loadMatrixWeeks();
+  renderMatrix();
+  toast('Nova semana criada! Histórico salvo.');
+}
+async function loadMatrixWeek(weekId){
+  if(!weekId){ await loadMatrixManual(); renderMatrix(); return; }
+  const week=MX_WEEKS.find(w=>w.id===weekId);
+  if(week){ MX_MANUAL=week.items||[]; renderMatrix(); }
 }
 
 async function loadMatrixManual(){
